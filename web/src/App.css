@@ -1,0 +1,487 @@
+.tw-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f7f9fc;
+}
+
+/* --- Nav (dark top bar) --- */
+.tw-nav {
+  background: #06033a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tw-nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tw-logo {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.tw-nav-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.tw-nav-link {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tw-nav-link:hover {
+  color: #fff;
+}
+
+/* --- Hero --- */
+.tw-hero {
+  background: linear-gradient(135deg, #06033a 0%, #12126d 42%, #1e3a8a 100%);
+  color: #fff;
+  padding: 2.75rem 1.25rem 3.25rem;
+}
+
+.tw-hero-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.tw-hero-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 0.75rem;
+}
+
+.tw-hero-title {
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 0 0 1rem;
+  max-width: 18ch;
+}
+
+.tw-hero-sub {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 52ch;
+}
+
+/* --- Main --- */
+.tw-main {
+  flex: 1;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.tw-shell {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.tw-alert {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b42318;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+}
+
+.tw-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 1.5rem 1.35rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 28px rgba(15, 23, 42, 0.04);
+}
+
+.tw-card--emphasis {
+  border-color: #dbeafe;
+  box-shadow: 0 1px 2px rgba(30, 58, 138, 0.06), 0 12px 32px rgba(30, 58, 138, 0.07);
+}
+
+.tw-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.35rem;
+  color: #0f172a;
+}
+
+.tw-card-lede {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.tw-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 560px) {
+  .tw-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tw-field span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.02em;
+}
+
+.tw-field input {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.925rem;
+  background: #fafafa;
+  color: #0f172a;
+}
+
+.tw-field input:focus {
+  outline: 2px solid rgba(242, 47, 70, 0.25);
+  outline-offset: 0;
+  border-color: #f22f46;
+  background: #fff;
+}
+
+/* Intent + mic */
+.tw-intent {
+  margin-top: 1.35rem;
+}
+
+.tw-intent-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  display: block;
+  margin-bottom: 0.45rem;
+}
+
+.tw-intent-box {
+  position: relative;
+}
+
+.tw-intent-box textarea {
+  width: 100%;
+  padding: 0.75rem 3.25rem 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.925rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 108px;
+  background: #fafafa;
+  color: #0f172a;
+}
+
+.tw-intent-box textarea:focus {
+  outline: 2px solid rgba(242, 47, 70, 0.25);
+  border-color: #f22f46;
+  background: #fff;
+}
+
+.tw-mic {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.tw-mic:hover:not(:disabled) {
+  border-color: #f22f46;
+  color: #f22f46;
+  background: #fff5f6;
+}
+
+.tw-mic:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tw-mic--active {
+  background: #f22f46;
+  border-color: #f22f46;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(242, 47, 70, 0.28);
+  animation: tw-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tw-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(242, 47, 70, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(242, 47, 70, 0.15);
+  }
+}
+
+.tw-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* Buttons — brand red primary */
+.tw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  margin-top: 1.35rem;
+}
+
+.tw-actions--split {
+  justify-content: flex-start;
+}
+
+.tw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.15rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.tw-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tw-btn-primary {
+  background: #f22f46;
+  color: #fff;
+  border-color: #f22f46;
+}
+
+.tw-btn-primary:hover:not(:disabled) {
+  background: #e01e36;
+  border-color: #e01e36;
+}
+
+.tw-btn-secondary {
+  background: #fff;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+.tw-btn-secondary:hover:not(:disabled) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.tw-btn-quiet {
+  background: transparent;
+  color: #64748b;
+  border-color: transparent;
+}
+
+.tw-btn-quiet:hover:not(:disabled) {
+  color: #0f172a;
+}
+
+.tw-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: tw-spin 0.65s linear infinite;
+}
+
+@keyframes tw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hotels */
+.tw-hotel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.tw-hotel {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #fafafa;
+}
+
+.tw-hotel:hover {
+  border-color: #cbd5e1;
+}
+
+.tw-hotel--on {
+  border-color: #f22f46;
+  background: #fff5f6;
+  box-shadow: 0 0 0 1px rgba(242, 47, 70, 0.15);
+}
+
+.tw-hotel input {
+  margin-top: 0.2rem;
+}
+
+.tw-hotel-name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.tw-hotel-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.tw-call-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.82rem;
+}
+
+.tw-pill {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tw-pre {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: #64748b;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Table */
+.tw-table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0 1rem;
+}
+
+.tw-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tw-table th,
+.tw-table td {
+  padding: 0.6rem 0.65rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.tw-table th {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.tw-mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.84em;
+}
+
+.tw-result {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-size: 0.9rem;
+}
+
+.tw-result-row {
+  margin-top: 0.35rem;
+}
+
+.tw-muted {
+  color: #64748b;
+}
+
+.tw-footer {
+  padding: 2rem 1.25rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.tw-footer a {
+  color: #0284c7;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tw-footer a:hover {
+  text-decoration: underline;
+}
