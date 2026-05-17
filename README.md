@@ -10,9 +10,11 @@ This project is a **FastAPI** backend plus an optional **React (Vite)** UI. It c
 
 ## High-level design
 
+Trip intent can arrive as **typed text or voice** (SMS/iMessage voice memos on Linq, mic upload on the web UI). Voice is transcribed first—**Deepgram** when configured—then merged with any text and handled by the same extraction and hotel-search pipeline.
+
 ### What it does (end-to-end)
 
-1. **Capture intent** — Destination, dates, guests, and preferences arrive via the web app or threaded Linq messages.
+1. **Capture intent** — Destination, dates, guests, and preferences arrive via the web app (form or mic) or threaded Linq messages (**text or voice notes**).
 2. **Normalize & persist** — Trip specs are stored; rule-based or LLM extraction fills gaps and merges follow-up messages in chat threads.
 3. **Discover hotels** — Geocoding + Places Text Search (or a stub provider) produces candidates within a configurable radius.
 4. **Quote & rank** — Quotes and scoring prepare comparable options (live hotel calling can be wired via ports; this build emphasizes discovery + links).
@@ -23,7 +25,7 @@ This project is a **FastAPI** backend plus an optional **React (Vite)** UI. It c
 flowchart LR
   subgraph channels["Channels"]
     Web["Web UI\n(Vite → REST)"]
-    Linq["Linq webhook\nSMS / iMessage"]
+    Linq["Linq webhook\nSMS / iMessage\ntext + voice"]
   end
 
   subgraph api["API layer"]
@@ -56,17 +58,23 @@ flowchart LR
   Trip --> Google
 ```
 
-### Layered architecture
+### Code layout
 
-| Layer | Role |
+Rough split — nothing fancy:
+
+| Path | What's in it |
 | --- | --- |
-| **`app/domain/`** | Exceptions, workflow state, **ports** (`IntentParserPort`, `HotelOutboundPort`, `ChannelMessagingPort`, `SpeechTranscriptionPort`), and pure messaging helpers (phases, hotel pick resolution). |
-| **`app/application/`** | Use cases: `TripService`, `HotelDiscoveryService`, `CallSessionService`, `DecisionService`, booking/consent flows, **`LinqBookingOrchestrator`** for inbound Linq, **`QuoteScorer`**, **`RuleBasedIntentParser`**. |
-| **`app/infrastructure/`** | SQLAlchemy **repositories**, **audit logging**, **Linq** adapters, **Google Hotels** client, optional **AI** (NVIDIA, Hugging Face speech). |
-| **`app/api/`** | Thin HTTP adapters, schemas, **mappers**; **`app/core/app_factory.py`** wires CORS, idempotency on POSTs, static UI, and exception mapping. |
-| **`web/src/`** | Shared HTTP client, hooks, and **`features/booking/`** for the main UI flow. |
+| `app/api/` | FastAPI routes + Pydantic schemas. `deps.py` wires services for DI. |
+| `app/application/` | Business logic: trips, hotel search, Linq SMS flow (`linq_booking_orchestrator.py`), booking. |
+| `app/infrastructure/` | DB repos, Linq client, Google Places, NVIDIA/Deepgram/HF clients. |
+| `app/domain/` | Small shared types: exceptions, a few protocols in `ports.py`, SMS phase enum. |
+| `app/core/` | Settings, DB session, app factory. |
+| `web/src/` | React UI. |
 
-Ports keep integrations swappable (e.g. another SMS provider or a simulated hotel caller) without rewriting business logic.
+**Web:** form + optional keyword intent parse (`RuleBasedIntentParser`).  
+**Linq:** multi-turn SMS → NVIDIA extracts trip JSON → same `HotelDiscoveryService` as web → user replies `1`/`2`/… → Booking.com link. Voice notes go through Deepgram first, then the same text path.
+
+Hotel search is either stub names or Google Places (`HOTEL_DISCOVERY_PROVIDER`), controlled in `hotel_discovery_service.py`. We didn't add a full domain layer on top of SQLAlchemy — models are the source of truth for now.
 
 ---
 
@@ -164,22 +172,30 @@ npm run preview
 
 ### Hotel search (Google)
 
-- `HOTEL_DISCOVERY_PROVIDER=stub` uses seeded fake hotels. `google` calls Geocoding API + Places API **(New)** Text Search (`places.googleapis.com`). Keys from the [Maps Platform key onboarding](https://console.cloud.google.com/google/maps-apis/onboard;flow=gmp-api-key-flow) often enable **Maps JavaScript** first; you must still open **APIs & Services → Library** and enable **Places API (New)** separately, then under **Credentials → your key → API restrictions**, either allow **Places API (New)** (and Geocoding) or use no restriction for local dev. Billing must be linked. Vague destinations (e.g. `Page`) may geocode poorly—prefer `Page, AZ`. On 403, check the API response detail in server logs (the app surfaces Google’s error message).
-- **Proximity:** By default, results are limited to **`HOTEL_SEARCH_RADIUS_MILES`** (default **10**) miles from the geocoded trip destination, or from a **reference location** if the LLM adds one on the trip. Text Search uses a circular **`locationBias`** (Google’s Text Search API does not allow a circle on `locationRestriction`); we **filter by distance** in code so results stay within the radius. **`HOTEL_SEARCH_MAX_RESULTS`** (default **4**) caps how many hotels are stored and returned; stub quotes show **nightly + taxes + total** next to each hotel in the UI and Linq SMS.
+- **`HOTEL_DISCOVERY_PROVIDER=stub`** — demo hotel names and stub prices only.
+- **`google`** — Google Geocoding + Places Text Search. Lists nearby properties; users finish on **Booking.com** via prefilled search links (optional `BOOKING_COM_AFFILIATE_ID`).
+- Enable **Places API (New)** + **Geocoding**, billing on. **`HOTEL_SEARCH_RADIUS_MILES`** (default **10**) and **`HOTEL_SEARCH_MAX_RESULTS`** (default **4**) cap results.
 
 ### Linq (SMS / iMessage) — how this differs from the web UI
 
-The **web UI** (`npm run dev` or built `/`) talks to the same backend over REST. **Linq** uses **inbound messages**: there is no separate “Linq portal” to pick hotels—the **SMS/iMessage thread is the UI**.
+The **web UI** talks to your laptop over REST. **Linq does not** — their servers must call your app on the public internet.
 
-- **`LINQ_FROM_NUMBER`** is the **business / sender** identity your integration uses for **outbound** replies (and to filter echo traffic). **Customers text *to* the Linq number assigned to your product/inbox in the Linq dashboard**, not “from” this env var. Inbound webhooks carry the **customer’s** number as the sender.
+**`uvicorn` alone is not enough.** If you only run `uvicorn app.main:app --reload`, texting your Linq number will not hit your app until you expose port 8000 (e.g. ngrok) and register that URL in the Linq dashboard.
 
-1. **Configure `.env`:** `LINQ_API_KEY` (Partner API token), `LINQ_FROM_NUMBER` (E.164 sender your API uses when sending replies), `LINQ_WEBHOOK_SECRET` (from Linq so `POST /webhooks/linq` can verify signatures). For natural-language trips over SMS, set **`NVIDIA_API_KEY`** (the Linq flow uses the LLM extractor; without it users see a short “needs NVIDIA_API_KEY” reply). Set **`HOTEL_DISCOVERY_PROVIDER=google`** and **`GOOGLE_MAPS_API_KEY`** if you want real Places results, same as the web app.
-2. **Expose the webhook:** Linq must reach your server at **`POST /webhooks/linq`**. On your machine, run **`ngrok http 8000`** (or similar) and copy the public **HTTPS** base URL.
-3. **Linq dashboard:** In your [Linq webhooks / subscriptions](https://docs.linqapp.com/guides/webhooks/index.md) settings, add a subscription whose URL is **`https://<your-host>/webhooks/linq`** and paste the signing secret into `LINQ_WEBHOOK_SECRET`.
-   - **Messages visible in Linq but nothing in your API terminal?** Linq has delivered SMS on their side; they have **not** successfully **POST**ed to your app. Fix the **subscription URL** (must be **HTTPS**, publicly reachable—ngrok URL changes every run unless you use a reserved domain), confirm **`uvicorn`** is listening on the port ngrok forwards to, and reopen ngrok’s web UI (**127.0.0.1:4040**) to see whether inbound HTTP hits appear. After restart you should see log lines like `linq webhook: POST received` on each delivery.
+**Checklist**
+
+1. **`.env`:** `LINQ_API_KEY`, `LINQ_FROM_NUMBER` (E.164 you send *from*), `LINQ_WEBHOOK_SECRET` (from the webhook subscription), `NVIDIA_API_KEY` (trip parsing). Optional: `DEEPGRAM_API_KEY` for voice notes.
+2. **Postgres running** + migrations applied (`alembic upgrade head`).
+3. **Terminal 1:** `uvicorn app.main:app --reload`
+4. **Terminal 2:** `ngrok http 8000` → copy the `https://….ngrok-free.app` URL
+5. **Linq dashboard:** webhook subscription → `https://<ngrok-host>/webhooks/linq` (same secret as `LINQ_WEBHOOK_SECRET`)
+6. **Sanity check:** open `http://127.0.0.1:8000/webhooks/linq/health` — `can_send_replies` should be `true`
+7. **Text your Linq number** — the uvicorn terminal should log `linq webhook hit` on every message. If you never see that line, Linq is not reaching your machine (wrong URL, ngrok stopped, or signature 401).
+
+- **`LINQ_FROM_NUMBER`** = outbound sender. Customers text the number assigned in Linq’s UI, not this env var.
 4. **Multi-turn conversation:** Each inbound message is **appended** to a short thread buffer for that chat. The LLM sees the **combined** text so the user can send destination first, then dates, then guest count, etc. If **destination** or **check-in / check-out** is still missing, the bot asks the next question instead of running hotel search. **After a trip is complete** (hotels listed), the user replies **`1`**, **`2`**, … to pick a hotel and receives the **Booking.com** prefilled link. To **start another booking** in the same thread after completion, send **`new trip`**, **`start over`**, **`restart`**, **`book again`**, or **`another trip`** (optionally followed by the new details on the same line).
 
-Voice notes and simulated hotel calls are off in this build; everything is text-in → text-out on Linq.
+**Voice notes on Linq:** When a message includes audio attachments, the server transcribes them with **Deepgram** (`DEEPGRAM_API_KEY`, pre-recorded `POST /v1/listen`) and merges the transcript with any typed text. That combined string then follows the same LLM trip-extraction and hotel-search pipeline as plain SMS. The web mic (`POST /ai/transcribe`) also prefers Deepgram when configured. Simulated outbound hotel calls remain optional/off by default.
 
 ### Booking.com & approvals
 

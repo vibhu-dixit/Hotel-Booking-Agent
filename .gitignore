@@ -1,5 +1,5 @@
 .venv/
-mavenly-ai-478108-879162c1c9b7.json
 .env
 .cursor/
 alembic.ini
+__pycache__/

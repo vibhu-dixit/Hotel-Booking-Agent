@@ -11,14 +11,7 @@ from app.infrastructure.persistence.repositories import DecisionRepository, Hote
 
 
 class DecisionService:
-    """Ranks quotes for a trip and persists a decision snapshot."""
-
-    def __init__(
-        self,
-        db: Session,
-        audit: SqlAlchemyAuditLogger,
-        scorer: QuoteScorer | None = None,
-    ):
+    def __init__(self, db: Session, audit: SqlAlchemyAuditLogger, scorer: QuoteScorer | None = None):
         self._trips = TripRepository(db)
         self._quotes = QuoteRepository(db)
         self._hotels = HotelRepository(db)
@@ -31,10 +24,10 @@ class DecisionService:
         quotes = self._quotes.list_for_trip(trip_id)
         hotels = {h.id: h for h in self._hotels.list_for_trip(trip_id)}
 
-        ranked: list[dict] = []
+        ranked = []
         for q in quotes:
             h = hotels.get(q.hotel_id)
-            if h is None:
+            if not h:
                 continue
             score, reasons = self._scorer.score(trip, h, q)
             ranked.append(
@@ -43,16 +36,13 @@ class DecisionService:
                     "hotel_id": str(h.id),
                     "hotel_name": h.name,
                     "score": score,
-                    "total_price": float(q.total_price) if q.total_price is not None else None,
+                    "total_price": float(q.total_price) if q.total_price else None,
                     "currency": q.currency,
                     "explain": reasons,
                 }
             )
-
         ranked.sort(key=lambda x: x["score"], reverse=True)
 
-        decision = DecisionResult(trip_id=trip_id, algorithm_version="v1", ranked=ranked)
-        saved = self._decisions.save(decision)
-
+        saved = self._decisions.save(DecisionResult(trip_id=trip_id, algorithm_version="v1", ranked=ranked))
         self._audit.log_decision_evaluated(trip_id=trip_id, decision_id=saved.id)
         return saved

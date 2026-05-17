@@ -3,14 +3,14 @@ from __future__ import annotations
 from app.db.models import HotelCandidate, Quote
 
 
-def hotel_candidate_to_dict(h: HotelCandidate, *, quote: Quote | None = None) -> dict:
-    """API boundary mapping (DRY — one place for hotel projection)."""
+def hotel_candidate_to_dict(hotel: HotelCandidate, *, quote: Quote | None = None) -> dict:
+    """API boundary mapping (structured fields for the web client)."""
     out: dict = {
-        "id": h.id,
-        "name": h.name,
-        "address": h.address,
-        "phone_e164": h.phone_e164,
-        "metadata": h.extra_metadata,
+        "id": hotel.id,
+        "name": hotel.name,
+        "address": hotel.address,
+        "phone_e164": hotel.phone_e164,
+        "metadata": hotel.extra_metadata,
         "nightly_rate": None,
         "taxes_fees": None,
         "total_price": None,

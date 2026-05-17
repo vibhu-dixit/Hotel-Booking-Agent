@@ -17,19 +17,12 @@ from app.infrastructure.audit.sqlalchemy_logger import SqlAlchemyAuditLogger
 DbSession = Annotated[Session, Depends(db_session)]
 
 
-def get_intent_parser() -> RuleBasedIntentParser:
-    return RuleBasedIntentParser()
-
-
 def get_audit_logger(db: DbSession) -> SqlAlchemyAuditLogger:
     return SqlAlchemyAuditLogger(db)
 
 
-def get_trip_service(
-    db: DbSession,
-    parser: Annotated[RuleBasedIntentParser, Depends(get_intent_parser)],
-) -> TripService:
-    return TripService(db, parser)
+def get_trip_service(db: DbSession) -> TripService:
+    return TripService(db, RuleBasedIntentParser())
 
 
 def get_hotel_discovery(db: DbSession) -> HotelDiscoveryService:

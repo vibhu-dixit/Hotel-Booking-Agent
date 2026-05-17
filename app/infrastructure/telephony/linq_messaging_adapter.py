@@ -17,27 +17,49 @@ class LinqChannelMessagingAdapter:
     def __init__(self, client: LinqPartnerClient | None = None) -> None:
         self._client = client or LinqPartnerClient()
 
-    def send_text(self, to_e164: str, message: str) -> None:
+    def send_text(
+        self,
+        to_e164: str,
+        message: str,
+        *,
+        chat_id: str | None = None,
+        preferred_service: str | None = None,
+    ) -> None:
         if not to_e164:
             return
         if not self._client.is_configured() or not settings.linq_from_number:
-            logger.info("Linq reply skipped (not configured): %s", message[:120])
+            logger.warning(
+                "Linq reply NOT sent — set LINQ_API_KEY and LINQ_FROM_NUMBER. Would have sent: %s",
+                message[:120],
+            )
             return
-        max_c = max(400, int(settings.linq_outbound_chunk_chars))
+        # SMS segments are safest under ~320 chars; iMessage tolerates longer bodies.
+        if preferred_service and preferred_service.upper() == "SMS":
+            max_c = min(320, max(160, int(settings.linq_outbound_chunk_chars)))
+        else:
+            max_c = max(400, int(settings.linq_outbound_chunk_chars))
         parts = chunk_text_for_outbound(message, max_c)
         delay = float(settings.linq_outbound_chunk_delay_s)
         try:
             for i, part in enumerate(parts):
                 head = f"[{i + 1}/{len(parts)}]\n" if len(parts) > 1 else ""
                 payload = (head + part)[:8000]
-                resp = self._client.send_text_message(to_e164=to_e164, text=payload)
+                if chat_id:
+                    resp = self._client.send_message_in_chat(
+                        chat_id=chat_id,
+                        text=payload,
+                        preferred_service=preferred_service,
+                    )
+                else:
+                    resp = self._client.send_text_message(to_e164=to_e164, text=payload)
                 if resp.status_code >= 400:
                     logger.warning(
-                        "Linq send failed %s (part %s/%s): %s",
+                        "Linq send failed %s %s (part %s/%s): %s",
                         resp.status_code,
+                        getattr(resp.request, "url", ""),
                         i + 1,
                         len(parts),
-                        resp.text[:500],
+                        (resp.text or "")[:500],
                     )
                 elif len(parts) > 1:
                     logger.info(

@@ -1,28 +1,20 @@
 from __future__ import annotations
 
 import json
-import re
 import uuid
 from datetime import datetime
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.application.call_session_service import CallSessionService
+from app.application.extraction.quote_normalizer import normalize_quote_fields
 from app.core.config import settings
+from app.core.json_utils import strip_json_fence
 from app.db.models import CallSession, CallStatus, HotelCandidate, Quote, TripRequest
 from app.infrastructure.ai.nvidia_llm import chat_response_text
 from app.infrastructure.audit.sqlalchemy_logger import SqlAlchemyAuditLogger
 from app.infrastructure.persistence.repositories import CallSessionRepository, HotelRepository, QuoteRepository, TripRepository
-
-
-def _strip_json(s: str) -> str:
-    t = s.strip()
-    if t.startswith("```"):
-        t = re.sub(r"^```(?:json)?\s*", "", t)
-        t = re.sub(r"\s*```$", "", t)
-    return t.strip()
 
 
 class SimulatedHotelOutbound:
@@ -60,6 +52,7 @@ class SimulatedHotelOutbound:
             loyalty = json.dumps(trip.preferences.get("loyalty"))
 
         spec = _simulate_quote(trip, hotel, loyalty)
+        normalized = normalize_quote_fields(spec)
         quote = Quote(
             trip_id=trip_id,
             hotel_id=hotel_id,
@@ -67,9 +60,9 @@ class SimulatedHotelOutbound:
             source="simulated_call",
             room_type=spec.get("room_type"),
             occupancy=trip.guests,
-            nightly_rate=_dec(spec.get("nightly_rate")),
-            taxes_fees=_dec(spec.get("taxes_fees")),
-            total_price=_dec(spec.get("total_price")),
+            nightly_rate=normalized.get("nightly_rate"),
+            taxes_fees=normalized.get("taxes_fees"),
+            total_price=normalized.get("total_price"),
             currency=str(spec.get("currency") or trip.currency or "USD")[:8],
             included_items=spec.get("included_items") if isinstance(spec.get("included_items"), dict) else {},
             deposit={},
@@ -91,15 +84,6 @@ class SimulatedHotelOutbound:
             extracted_facts=facts,
         )
         return call, quote
-
-
-def _dec(v: Any) -> Decimal | None:
-    if v is None:
-        return None
-    try:
-        return Decimal(str(v))
-    except Exception:
-        return None
 
 
 def _simulate_quote(trip: TripRequest, hotel: HotelCandidate, loyalty_json: str) -> dict[str, Any]:
@@ -133,7 +117,7 @@ Simulate asking for best flexible rate, taxes, whether a loyalty rate applies, a
         max_tokens=2048,
     )
     try:
-        return json.loads(_strip_json(raw))
+        return json.loads(strip_json_fence(raw))
     except json.JSONDecodeError:
         return {
             "nightly_rate": 199,

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Brief pause between chunks so the carrier delivers them in order.
     linq_outbound_chunk_delay_s: float = 0.35
 
+    # stub | google
     hotel_discovery_provider: str = "stub"
     google_maps_api_key: str | None = None
     # Google Places Text Search: restrict results to this radius (miles) from destination or reference geocode
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
 
     intent_parser_provider: str = "llm"
 
-    # Booking.com Partner Programme affiliate id (optional `aid=` on search URLs)
+    # Booking.com Partner Programme affiliate id (optional aid= on search URLs)
     booking_com_affiliate_id: str | None = None
 
     caller_id_mode: str = "verified_business_number"
@@ -52,6 +53,10 @@ class Settings(BaseSettings):
     nvidia_api_key: str | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_chat_model: str = "nvidia/nemotron-3-super-120b-a12b"
+
+    # Deepgram pre-recorded ASR (Linq voice notes). Flux v2 streaming is not used here.
+    deepgram_api_key: str | None = None
+    deepgram_listen_model: str = "nova-2"
 
     audio_retention_days: int = 7
     transcript_retention_days: int = 30

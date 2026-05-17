@@ -17,35 +17,29 @@ class ParsedIntent:
 
 
 class IntentParserPort(Protocol):
-    """Strategy for turning natural language into structured trip constraints."""
-
-    def parse(self, user_text: str) -> ParsedIntent:
-        ...
+    def parse(self, user_text: str) -> ParsedIntent: ...
 
 
 class HotelOutboundPort(Protocol):
-    """Places an outbound call to a hotel and produces a quote (PSTN or simulated)."""
-
     def run_quote_call(
         self,
-        db: "Session",
+        db: Session,
         *,
         trip_id: uuid.UUID,
         hotel_id: uuid.UUID,
-    ) -> tuple["CallSession", "Quote"]:
-        ...
+    ) -> tuple[CallSession, Quote]: ...
 
 
 class ChannelMessagingPort(Protocol):
-    """Outbound user notifications (SMS/iMessage/RCS via Linq or another provider)."""
-
-    def send_text(self, to_e164: str, message: str) -> None:
-        """Best-effort send; implementations log failures rather than raising for UX flows."""
-        ...
+    def send_text(
+        self,
+        to_e164: str,
+        message: str,
+        *,
+        chat_id: str | None = None,
+        preferred_service: str | None = None,
+    ) -> None: ...
 
 
 class SpeechTranscriptionPort(Protocol):
-    """Download audio from URL and return transcript text."""
-
-    def transcribe_media_url(self, url: str) -> str:
-        ...
+    def transcribe_media_url(self, url: str) -> str: ...

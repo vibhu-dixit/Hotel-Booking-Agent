@@ -7,6 +7,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from app.api.schemas import AiChatRequest, AiChatResponse, AiTtsRequest, AiTranscribeResponse
 from app.core.config import settings
+from app.infrastructure.ai.deepgram_speech import DeepgramSpeechTranscriptionAdapter
 from app.infrastructure.ai.huggingface_speech import speech_gateway
 from app.infrastructure.ai.nvidia_llm import chat_complete, stream_chat
 
@@ -27,15 +28,24 @@ def tts(req: AiTtsRequest) -> Response:
 
 @router.post("/transcribe", response_model=AiTranscribeResponse)
 async def transcribe(file: UploadFile = File(...)) -> AiTranscribeResponse:
-    gw = speech_gateway()
-    if not gw.available:
-        raise HTTPException(status_code=503, detail="HF_TOKEN not configured")
     data = await file.read()
     suffix = Path(file.filename or "upload.wav").suffix or ".wav"
+    content_type = file.content_type or "application/octet-stream"
+
+    if settings.deepgram_api_key:
+        try:
+            text = DeepgramSpeechTranscriptionAdapter().transcribe_bytes(data, content_type=content_type)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return AiTranscribeResponse(text=text)
+
+    gw = speech_gateway()
+    if not gw.available:
+        raise HTTPException(status_code=503, detail="DEEPGRAM_API_KEY or HF_TOKEN required for transcription")
     try:
         text = gw.transcribe_upload(data, suffix=suffix)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return AiTranscribeResponse(text=text)
 
 
@@ -65,8 +75,8 @@ def chat(req: AiChatRequest) -> AiChatResponse | StreamingResponse:
             top_p=req.top_p,
             max_tokens=req.max_tokens,
         )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return AiChatResponse(text=text)

@@ -1,21 +1,13 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
 from app.application.scoring.quote_scorer import normalize_ranking_priority
+from app.core.json_utils import strip_json_fence
 from app.infrastructure.ai.nvidia_llm import chat_response_text
-
-
-def _strip_json_fence(text: str) -> str:
-    t = text.strip()
-    if t.startswith("```"):
-        t = re.sub(r"^```(?:json)?\s*", "", t)
-        t = re.sub(r"\s*```$", "", t)
-    return t.strip()
 
 
 @dataclass
@@ -36,7 +28,14 @@ class ExtractedTripSpec:
     notes: str | None
 
 
-DEFAULT_SYSTEM = """You extract structured hotel trip intent from the user's message(s). Return ONLY valid JSON, no markdown.
+def _default_system() -> str:
+    today = date.today().isoformat()
+    return f"""You extract structured hotel trip intent from the user's message(s). Return ONLY valid JSON, no markdown.
+
+Today's date is {today}. Resolve all relative and spoken dates against this anchor (e.g. "tomorrow", "next Friday", "May 18–20", "the 18th to the 20th").
+If the user gives month/day without a year, pick the next future occurrence on or after today (same year when still upcoming, otherwise next year).
+check_out must be strictly after check_in.
+
 Use keys:
 - destination (string, city/area to stay)
 - check_in, check_out (ISO date YYYY-MM-DD if inferable, else null)
@@ -49,20 +48,20 @@ Use keys:
 - notes (short string)
 - ranking_priority (string optional): what matters most when comparing hotels — lowest_price | budget_fit | highest_rating | closest | balanced (or informal: cheap, budget, stars, near)
 
-If dates are missing, set missing to include check_in/check_out. Never invent specific dates unless user implied them; otherwise leave null and list in missing."""
+If dates are missing, set missing to include check_in/check_out. Do not substitute "tomorrow" unless the user clearly asked for tomorrow."""
 
 
 def extract_trip_spec(user_text: str, *, fill_default_dates: bool = True) -> ExtractedTripSpec:
     raw = chat_response_text(
         messages=[
-            {"role": "system", "content": DEFAULT_SYSTEM},
+            {"role": "system", "content": _default_system()},
             {"role": "user", "content": user_text[:12000]},
         ],
         temperature=0.1,
         max_tokens=2048,
     )
     try:
-        data = json.loads(_strip_json_fence(raw))
+        data = json.loads(strip_json_fence(raw))
     except json.JSONDecodeError:
         data = {}
 
@@ -74,6 +73,7 @@ def extract_trip_spec(user_text: str, *, fill_default_dates: bool = True) -> Ext
 
     ci = _parse_date(data.get("check_in"))
     co = _parse_date(data.get("check_out"))
+    ci, co = _coerce_future_stay_dates(ci, co, date.today())
     guests = _int_or(data.get("guests"), 2)
     rooms = _int_or(data.get("rooms"), 1)
     budget = data.get("budget_total")
@@ -116,8 +116,7 @@ def extract_trip_spec(user_text: str, *, fill_default_dates: bool = True) -> Ext
     if not dest:
         missing_s.append("destination")
 
-    # Web / single-shot flows: infer placeholder dates when missing. Linq SMS sets
-    # fill_default_dates=False so we can ask follow-up questions instead.
+    # web fills default dates; Linq passes fill_default_dates=False to ask follow-ups
     if fill_default_dates:
         base = date.today()
         if ci is None and dest:
@@ -144,6 +143,33 @@ def extract_trip_spec(user_text: str, *, fill_default_dates: bool = True) -> Ext
         missing=list(dict.fromkeys(missing_s)),
         notes=notes_s,
     )
+
+
+def _coerce_future_stay_dates(
+    check_in: date | None,
+    check_out: date | None,
+    today: date,
+) -> tuple[date | None, date | None]:
+    """Bump past years / fix checkout so links match what the user asked for."""
+    if check_in is None:
+        return check_in, check_out
+    ci = check_in
+    while ci < today:
+        try:
+            ci = ci.replace(year=ci.year + 1)
+        except ValueError:
+            ci = ci + timedelta(days=365)
+    if check_out is None:
+        return ci, None
+    co = check_out
+    while co <= ci:
+        try:
+            co = co.replace(year=co.year + 1)
+        except ValueError:
+            co = co + timedelta(days=365)
+    if co <= ci:
+        co = ci + timedelta(days=1)
+    return ci, co
 
 
 def _parse_date(v: object) -> date | None:

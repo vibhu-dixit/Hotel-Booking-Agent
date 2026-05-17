@@ -12,12 +12,10 @@ from app.infrastructure.persistence.repositories import TripRepository, UserRepo
 
 
 class TripService:
-    """Coordinates user + trip creation and intent persistence."""
-
     def __init__(self, db: Session, intent_parser: IntentParserPort):
         self._users = UserRepository(db)
         self._trips = TripRepository(db)
-        self._intent_parser = intent_parser
+        self._parser = intent_parser
 
     def start_trip(
         self,
@@ -51,9 +49,9 @@ class TripService:
         return TripStartResult(trip_id=trip.id, user_id=user.id)
 
     def parse_and_store_intent(self, trip_id: uuid.UUID, user_text: str) -> ParsedIntent:
-        parsed = self._intent_parser.parse(user_text)
+        parsed = self._parser.parse(user_text)
         trip = self._trips.get_required(trip_id)
-        merged_p = {**dict(trip.preferences or {}), **parsed.preferences}
-        merged_c = {**dict(trip.constraints or {}), **parsed.constraints}
-        self._trips.save_preferences(trip, preferences=merged_p, constraints=merged_c)
+        prefs = {**dict(trip.preferences or {}), **parsed.preferences}
+        constraints = {**dict(trip.constraints or {}), **parsed.constraints}
+        self._trips.save_preferences(trip, preferences=prefs, constraints=constraints)
         return parsed
